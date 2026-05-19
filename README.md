@@ -1,2 +1,8 @@
-# java-enterprise-ecommerce-ui
-Enterprise Full-Stack E-Commerce UI, engineered to drive CRUD operations via a RESTful Spring Boot API. Features seamless integration with Spring Data JPA Repository architectures, multi-part data streams for binary image blobs, and real-time inventory synchronization backed by a MySQL database.
+# React + Vite
+
+This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+
+Currently, two official plugins are available:
+
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
