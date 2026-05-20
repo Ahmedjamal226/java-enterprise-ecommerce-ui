@@ -1,11 +1,12 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import axios from "axios";
-import AppContext from "../Context/Context";
-import unplugged from "../assets/unplugged.png"
+import axios from "../axios"; // 🟢 CHANGED: Points to your centralized Axios client config instance
+import { useApp } from "../Context/Context"; // 🟢 CHANGED: Consume clean custom context hook variant
+import unplugged from "../assets/unplugged.png";
 
 const Home = ({ selectedCategory }) => {
-  const { data, isError, addToCart, refreshData } = useContext(AppContext);
+  // 🟢 CHANGED: Extracted safely using useApp() to keep Fast Refresh functional
+  const { data, isError, addToCart, refreshData } = useApp(); 
   const [products, setProducts] = useState([]);
   const [isDataFetched, setIsDataFetched] = useState(false);
 
@@ -22,8 +23,9 @@ const Home = ({ selectedCategory }) => {
         const updatedProducts = await Promise.all(
           data.map(async (product) => {
             try {
+              // 🟢 CHANGED: Clean path relative to your cloud-configured base URL
               const response = await axios.get(
-                `http://localhost:8080/api/product/${product.id}/image`,
+                `/product/${product.id}/image`,
                 { responseType: "blob" }
               );
               const imageUrl = URL.createObjectURL(response.data);
@@ -52,10 +54,11 @@ const Home = ({ selectedCategory }) => {
   if (isError) {
     return (
       <h2 className="text-center" style={{ padding: "18rem" }}>
-      <img src={unplugged} alt="Error" style={{ width: '100px', height: '100px' }}/>
+        <img src={unplugged} alt="Error" style={{ width: '100px', height: '100px' }}/>
       </h2>
     );
   }
+  
   return (
     <>
       <div
@@ -83,12 +86,6 @@ const Home = ({ selectedCategory }) => {
           filteredProducts.map((product) => {
             const { id, brand, name, price, productAvailable, imageUrl } =
               product;
-            const cardStyle = {
-              width: "18rem",
-              height: "12rem",
-              boxShadow: "rgba(0, 0, 0, 0.24) 0px 2px 3px",
-              backgroundColor: productAvailable ? "#fff" : "#ccc",
-            };
             return (
               <div
                 className="card mb-3"
@@ -101,8 +98,8 @@ const Home = ({ selectedCategory }) => {
                   backgroundColor: productAvailable ? "#fff" : "#ccc",
                   display: "flex",
                   flexDirection: "column",
-                  justifyContent:'flex-start',
-                  alignItems:'stretch'
+                  justifyContent: 'flex-start',
+                  alignItems: 'stretch'
                 }}
                 key={id}
               >
@@ -150,15 +147,15 @@ const Home = ({ selectedCategory }) => {
                     <div className="home-cart-price">
                       <h5
                         className="card-text"
-                        style={{ fontWeight: "600", fontSize: "1.1rem",marginBottom:'5px' }}
+                        style={{ fontWeight: "600", fontSize: "1.1rem", marginBottom: '5px' }}
                       >
-                        <i class="bi bi-currency-rupee"></i>
+                        <i className="bi bi-currency-rupee"></i>
                         {price}
                       </h5>
                     </div>
                     <button
                       className="btn-hover color-9"
-                      style={{margin:'10px 25px 0px '  }}
+                      style={{ margin: '10px 25px 0px ' }}
                       onClick={(e) => {
                         e.preventDefault();
                         addToCart(product);
