@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from "react";
-import Home from "./Home"
-import axios from "axios";
-// import { json } from "react-router-dom";
-// import { BiSunFill, BiMoon } from "react-icons/bi";
+import Home from "./Home";
+import axios from "../axios"; // 🟢 CHANGED: Points to your centralized Axios config instead of raw axios
+import { useApp } from "../Context/Context"; // 🟢 ADDED: Import your custom context hook
 
 const Navbar = ({ onSelectCategory, onSearch }) => {
+  const { cart } = useApp(); // 🟢 ADDED: Extract the live cart array from your context layer
+
   const getInitialTheme = () => {
     const storedTheme = localStorage.getItem("theme");
     return storedTheme ? storedTheme : "light-theme";
@@ -15,14 +16,16 @@ const Navbar = ({ onSelectCategory, onSearch }) => {
   const [searchResults, setSearchResults] = useState([]);
   const [noResults, setNoResults] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
-  const [showSearchResults,setShowSearchResults] = useState(false)
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  
   useEffect(() => {
     fetchData();
   }, []);
 
-  const fetchData = async (value) => {
+  const fetchData = async () => {
     try {
-      const response = await axios.get("http://localhost:8080/api/products");
+      // 🟢 CHANGED: Using path relative to your baseURL config
+      const response = await axios.get("/products");
       setSearchResults(response.data);
       console.log(response.data);
     } catch (error) {
@@ -33,17 +36,16 @@ const Navbar = ({ onSelectCategory, onSearch }) => {
   const handleChange = async (value) => {
     setInput(value);
     if (value.length >= 1) {
-      setShowSearchResults(true)
-    try {
-      const response = await axios.get(
-        `http://localhost:8080/api/products/search?keyword=${value}`
-      );
-      setSearchResults(response.data);
-      setNoResults(response.data.length === 0);
-      console.log(response.data);
-    } catch (error) {
-      console.error("Error searching:", error);
-    }
+      setShowSearchResults(true);
+      try {
+        // 🟢 CHANGED: Using path relative to your baseURL config
+        const response = await axios.get(`/products/search?keyword=${value}`);
+        setSearchResults(response.data);
+        setNoResults(response.data.length === 0);
+        console.log(response.data);
+      } catch (error) {
+        console.error("Error searching:", error);
+      }
     } else {
       setShowSearchResults(false);
       setSearchResults([]);
@@ -51,39 +53,11 @@ const Navbar = ({ onSelectCategory, onSearch }) => {
     }
   };
 
-  
-  // const handleChange = async (value) => {
-  //   setInput(value);
-  //   if (value.length >= 1) {
-  //     setShowSearchResults(true);
-  //     try {
-  //       let response;
-  //       if (!isNaN(value)) {
-  //         // Input is a number, search by ID
-  //         response = await axios.get(`http://localhost:8080/api/products/search?id=${value}`);
-  //       } else {
-  //         // Input is not a number, search by keyword
-  //         response = await axios.get(`http://localhost:8080/api/products/search?keyword=${value}`);
-  //       }
-
-  //       const results = response.data;
-  //       setSearchResults(results);
-  //       setNoResults(results.length === 0);
-  //       console.log(results);
-  //     } catch (error) {
-  //       console.error("Error searching:", error.response ? error.response.data : error.message);
-  //     }
-  //   } else {
-  //     setShowSearchResults(false);
-  //     setSearchResults([]);
-  //     setNoResults(false);
-  //   }
-  // };
-
   const handleCategorySelect = (category) => {
     setSelectedCategory(category);
     onSelectCategory(category);
   };
+  
   const toggleTheme = () => {
     const newTheme = theme === "dark-theme" ? "light-theme" : "dark-theme";
     setTheme(newTheme);
@@ -102,14 +76,15 @@ const Navbar = ({ onSelectCategory, onSearch }) => {
     "Toys",
     "Fashion",
   ];
+  
   return (
     <>
       <header>
         <nav className="navbar navbar-expand-lg fixed-top">
           <div className="container-fluid">
-           <a 
+            <a 
               className="navbar-brand" 
-              href="http://www.linkedin.com/in/ahmed-jamal-6a3286228"
+              href="https://www.linkedin.com/in/ahmed-jamal-6a3286228"
               target="_blank"
               rel="noopener noreferrer"
               style={{ fontWeight: "bold", letterSpacing: "0.5px" }}
@@ -150,6 +125,7 @@ const Navbar = ({ onSelectCategory, onSearch }) => {
                     role="button"
                     data-bs-toggle="dropdown"
                     aria-expanded="false"
+                    ensure-active-item="false"
                   >
                     Categories
                   </a>
@@ -167,7 +143,6 @@ const Navbar = ({ onSelectCategory, onSearch }) => {
                     ))}
                   </ul>
                 </li>
-
                 <li className="nav-item"></li>
               </ul>
               <button className="theme-btn" onClick={() => toggleTheme()}>
@@ -178,15 +153,20 @@ const Navbar = ({ onSelectCategory, onSearch }) => {
                 )}
               </button>
               <div className="d-flex align-items-center cart">
-                <a href="/cart" className="nav-link text-dark">
+                <a href="/cart" className="nav-link text-dark position-relative me-3">
                   <i
-                    className="bi bi-cart me-2"
+                    className="bi bi-cart me-1"
                     style={{ display: "flex", alignItems: "center" }}
                   >
                     Cart
                   </i>
+                  {/* 🟢 ADDED: Dynamic visual pill showing items in local state checkout array */}
+                  {cart.length > 0 && (
+                    <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger text-white">
+                      {cart.reduce((total, item) => total + item.quantity, 0)}
+                    </span>
+                  )}
                 </a>
-                {/* <form className="d-flex" role="search" onSubmit={handleSearch} id="searchForm"> */}
                 <input
                   className="form-control me-2"
                   type="search"
@@ -194,8 +174,8 @@ const Navbar = ({ onSelectCategory, onSearch }) => {
                   aria-label="Search"
                   value={input}
                   onChange={(e) => handleChange(e.target.value)}
-                  onFocus={() => setSearchFocused(true)} // Set searchFocused to true when search bar is focused
-                  onBlur={() => setSearchFocused(false)} // Set searchFocused to false when search bar loses focus
+                  onFocus={() => setSearchFocused(true)}
+                  onBlur={() => setSearchFocused(false)}
                 />
                 {showSearchResults && (
                   <ul className="list-group">
@@ -210,19 +190,12 @@ const Navbar = ({ onSelectCategory, onSearch }) => {
                     ) : (
                       noResults && (
                         <p className="no-results-message">
-                          No Prouduct with such Name
+                          No Product with such Name
                         </p>
                       )
                     )}
                   </ul>
                 )}
-                {/* <button
-                  className="btn btn-outline-success"
-                  onClick={handleSearch}
-                >
-                  Search Products
-                </button> */}
-                {/* </form> */}
                 <div />
               </div>
             </div>
