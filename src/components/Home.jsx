@@ -1,14 +1,15 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import axios from "../axios"; // 🟢 CHANGED: Points to your centralized Axios client config instance
-import { useApp } from "../Context/Context"; // 🟢 CHANGED: Consume clean custom context hook variant
+import axios from "../axios"; // 🟢 Points to centralized Axios config client
+import { useApp } from "../Context/Context"; // 🟢 Consumes memory-safe custom context hook
 import unplugged from "../assets/unplugged.png";
 
 const Home = ({ selectedCategory }) => {
-  // 🟢 CHANGED: Extracted safely using useApp() to keep Fast Refresh functional
   const { data, isError, addToCart, refreshData } = useApp(); 
   const [products, setProducts] = useState([]);
   const [isDataFetched, setIsDataFetched] = useState(false);
+  // 🟢 ADDED: Loading state defaults to true to keep UI responsive during backend cold-starts
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!isDataFetched) {
@@ -18,32 +19,33 @@ const Home = ({ selectedCategory }) => {
   }, [refreshData, isDataFetched]);
 
   useEffect(() => {
-    if (data && data.length > 0) {
-      const fetchImagesAndUpdateProducts = async () => {
-        const updatedProducts = await Promise.all(
-          data.map(async (product) => {
-            try {
-              // 🟢 CHANGED: Clean path relative to your cloud-configured base URL
-              const response = await axios.get(
-                `/product/${product.id}/image`,
-                { responseType: "blob" }
-              );
-              const imageUrl = URL.createObjectURL(response.data);
-              return { ...product, imageUrl };
-            } catch (error) {
-              console.error(
-                "Error fetching image for product ID:",
-                product.id,
-                error
-              );
-              return { ...product, imageUrl: "placeholder-image-url" };
-            }
-          })
-        );
-        setProducts(updatedProducts);
-      };
-
-      fetchImagesAndUpdateProducts();
+    // 🟢 If data array from context fills up or returns empty from an active server response, stop loading
+    if (data) {
+      if (data.length > 0) {
+        const fetchImagesAndUpdateProducts = async () => {
+          const updatedProducts = await Promise.all(
+            data.map(async (product) => {
+              try {
+                const response = await axios.get(
+                  `/product/${product.id}/image`,
+                  { responseType: "blob" }
+                );
+                const imageUrl = URL.createObjectURL(response.data);
+                return { ...product, imageUrl };
+              } catch (error) {
+                console.error("Error fetching image for product ID:", product.id, error);
+                return { ...product, imageUrl: "placeholder-image-url" };
+              }
+            })
+          );
+          setProducts(updatedProducts);
+          setLoading(false); // 🟢 Stop loading once image streams finish binding
+        };
+        fetchImagesAndUpdateProducts();
+      } else {
+        // If data is valid but explicitly empty (0 items found in backend DB)
+        setLoading(false);
+      }
     }
   }, [data]);
 
@@ -51,6 +53,7 @@ const Home = ({ selectedCategory }) => {
     ? products.filter((product) => product.category === selectedCategory)
     : products;
 
+  // 1️⃣ Render Step: Network Connection Loss / General Server Crashes
   if (isError) {
     return (
       <h2 className="text-center" style={{ padding: "18rem" }}>
@@ -58,7 +61,25 @@ const Home = ({ selectedCategory }) => {
       </h2>
     );
   }
+
+  // 2️⃣ Render Step: 🟢 ADDED: Handle Server Cold-Start cleanly with an active structural loader
+  if (loading) {
+    return (
+      <div className="text-center" style={{ padding: "15rem 2rem" }}>
+        <div 
+          className="spinner-border text-primary" 
+          role="status" 
+          style={{ width: "3rem", height: "3rem", marginBottom: "1.5rem" }}
+        ></div>
+        <h3 style={{ fontWeight: "400", color: "#555" }}>Connecting to Cloud Server...</h3>
+        <p style={{ color: "#888", fontSize: "0.9rem" }}>
+          Render's free tier container is waking up. This may take up to 15 seconds on the first visit.
+        </p>
+      </div>
+    );
+  }
   
+  // 3️⃣ Main Viewport: Render actual inventory data layout safely
   return (
     <>
       <div
@@ -78,14 +99,15 @@ const Home = ({ selectedCategory }) => {
               display: "flex",
               justifyContent: "center",
               alignItems: "center",
+              gridColumn: "1 / -1", // Center the empty text fully across the full row grid split layout
+              padding: "10rem 0"
             }}
           >
             No Products Available
           </h2>
         ) : (
           filteredProducts.map((product) => {
-            const { id, brand, name, price, productAvailable, imageUrl } =
-              product;
+            const { id, brand, name, price, productAvailable, imageUrl } = product;
             return (
               <div
                 className="card mb-3"
@@ -116,7 +138,7 @@ const Home = ({ selectedCategory }) => {
                       objectFit: "cover",  
                       padding: "5px",
                       margin: "0",
-                      borderRadius: "10px 10px 10px 10px", 
+                      borderRadius: "10px", 
                     }}
                   />
                   <div
