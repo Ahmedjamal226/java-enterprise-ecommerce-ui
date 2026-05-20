@@ -1,246 +1,175 @@
-import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
-import axios from "axios";
+import { useNavigate, useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useApp } from "../Context/Context"; // 🟢 CHANGED: Consume clean custom hook context variant
+import axios from "../axios"; // 🟢 CHANGED: Point to your centralized config instance
 
-const UpdateProduct = () => {
+const Product = () => {
   const { id } = useParams();
-  const [product, setProduct] = useState({});
-  const [image, setImage] = useState();
-  const [updateProduct, setUpdateProduct] = useState({
-    id: null,
-    name: "",
-    description: "",
-    brand: "",
-    price: "",
-    category: "",
-    releaseDate: "",
-    productAvailable: false,
-    stockQuantity: "",
-  });
+  // 🟢 CHANGED: Safely extracted from useApp hook
+  const { addToCart, removeFromCart, refreshData } = useApp();
+  const [product, setProduct] = useState(null);
+  const [imageUrl, setImageUrl] = useState("");
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchProduct = async () => {
       try {
-        const response = await axios.get(
-          `http://localhost:8080/api/product/${id}`
-        );
-
+        // 🟢 CHANGED: Path made relative to your base cloud URL configuration
+        const response = await axios.get(`/product/${id}`);
         setProduct(response.data);
-      
-        const responseImage = await axios.get(
-          `http://localhost:8080/api/product/${id}/image`,
-          { responseType: "blob" }
-        );
-       const imageFile = await converUrlToFile(responseImage.data,response.data.imageName)
-        setImage(imageFile);     
-        setUpdateProduct(response.data);
+        if (response.data.imageName) {
+          fetchImage();
+        }
       } catch (error) {
         console.error("Error fetching product:", error);
+      }
+    };
+
+    const fetchImage = async () => {
+      try {
+        // 🟢 CHANGED: Path made relative to your base cloud URL configuration
+        const response = await axios.get(
+          `/product/${id}/image`,
+          { responseType: "blob" }
+        );
+        setImageUrl(URL.createObjectURL(response.data));
+      } catch (error) {
+        console.error("Error fetching product image:", error);
       }
     };
 
     fetchProduct();
   }, [id]);
 
-  useEffect(() => {
-    console.log("image Updated", image);
-  }, [image]);
+  const deleteProduct = async () => {
+    try {
+      // 🟢 CHANGED: Path made relative to your base cloud URL configuration
+      await axios.delete(`/product/${id}`);
+      removeFromCart(id);
+      console.log("Product deleted successfully");
+      alert("Product deleted successfully");
+      refreshData();
+      navigate("/");
+    } catch (error) {
+      console.error("Error deleting product:", error);
+    }
+  };
 
+  const handleEditClick = () => {
+    navigate(`/product/update/${id}`);
+  };
 
+  const handlAddToCart = () => {
+    addToCart(product);
+    alert("Product added to cart");
+  };
 
-  const converUrlToFile = async(blobData, fileName) => {
-    const file = new File([blobData], fileName, { type: blobData.type });
-    return file;
-  }
- 
-  const handleSubmit = async(e) => {
-    e.preventDefault();
-    console.log("images", image)
-    console.log("productsdfsfsf", updateProduct)
-    const updatedProduct = new FormData();
-    updatedProduct.append("imageFile", image);
-    updatedProduct.append(
-      "product",
-      new Blob([JSON.stringify(updateProduct)], { type: "application/json" })
+  if (!product) {
+    return (
+      <h2 className="text-center" style={{ padding: "10rem" }}>
+        Loading...
+      </h2>
     );
-  
-
-  console.log("formData : ", updatedProduct)
-    axios
-      .put(`http://localhost:8080/api/product/${id}`, updatedProduct, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      })
-      .then((response) => {
-        console.log("Product updated successfully:", updatedProduct);
-        alert("Product updated successfully!");
-      })
-      .catch((error) => {
-        console.error("Error updating product:", error);
-        console.log("product unsuccessfull update",updateProduct)
-        alert("Failed to update product. Please try again.");
-      });
-  };
- 
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setUpdateProduct({
-      ...updateProduct,
-      [name]: value,
-    });
-  };
-  
-  const handleImageChange = (e) => {
-    setImage(e.target.files[0]);
-  };
-  
+  }
 
   return (
-    <div className="update-product-container" >
-      <div className="center-container"style={{marginTop:"7rem"}}>
-        <h1>Update Product</h1>
-        <form className="row g-3 pt-1" onSubmit={handleSubmit}>
-          <div className="col-md-6">
-            <label className="form-label">
-              <h6>Name</h6>
-            </label>
-            <input
-              type="text"
-              className="form-control"
-              placeholder={product.name}
-              value={updateProduct.name}
-              onChange={handleChange}
-              name="name"
-            />
-          </div>
-          <div className="col-md-6">
-            <label className="form-label">
-              <h6>Brand</h6>
-            </label>
-            <input
-              type="text"
-              name="brand"
-              className="form-control"
-              placeholder={product.brand}
-              value={updateProduct.brand}
-              onChange={handleChange}
-              id="brand"
-            />
-          </div>
-          <div className="col-12">
-            <label className="form-label">
-              <h6>Description</h6>
-            </label>
-            <input
-              type="text"
-              className="form-control"
-              placeholder={product.description}
-              name="description"
-              onChange={handleChange}
-              value={updateProduct.description}
-              id="description"
-            />
-          </div>
-          <div className="col-5">
-            <label className="form-label">
-              <h6>Price</h6>
-            </label>
-            <input
-              type="number"
-              className="form-control"
-              onChange={handleChange}
-              value={updateProduct.price}
-              placeholder={product.price}
-              name="price"
-              id="price"
-            />
-          </div>
-          <div className="col-md-6">
-            <label className="form-label">
-              <h6>Category</h6>
-            </label>
-            <select
-              className="form-select"
-              value={updateProduct.category}
-              onChange={handleChange}
-              name="category"
-              id="category"
-            >
-              <option value="">Select category</option>
-              <option value="laptop">Laptop</option>
-              <option value="headphone">Headphone</option>
-              <option value="mobile">Mobile</option>
-              <option value="electronics">Electronics</option>
-              <option value="toys">Toys</option>
-              <option value="fashion">Fashion</option>
-            </select>
-          </div>
+    <>
+      <div className="containers" style={{ display: "flex" }}>
+        <img
+          className="left-column-img"
+          src={imageUrl}
+          alt={product.imageName}
+          style={{ width: "50%", height: "auto" }}
+        />
 
-          <div className="col-md-4">
-            <label className="form-label">
-              <h6>Stock Quantity</h6>
-            </label>
-            <input
-              type="number"
-              className="form-control"
-              onChange={handleChange}
-              placeholder={product.stockQuantity}
-              value={updateProduct.stockQuantity}
-              name="stockQuantity"
-              id="stockQuantity"
-            />
-          </div>
-          <div className="col-md-8">
-            <label className="form-label">
-              <h6>Image</h6>
-            </label>
-            <img
-              src={image ? URL.createObjectURL(image) : "Image unavailable"}
-              alt={product.imageName}
-              style={{
-                width: "100%",
-                height: "180px",
-                objectFit: "cover",
-                padding: "5px",
-                margin: "0",
-              }}
-            />
-            <input
-              className="form-control"
-              type="file"
-              onChange={handleImageChange}
-              placeholder="Upload image"
-              name="imageUrl"
-              id="imageUrl"
-            />
-          </div>
-          <div className="col-12">
-            <div className="form-check">
-              <input
-                className="form-check-input"
-                type="checkbox"
-                name="productAvailable"
-                id="gridCheck"
-                checked={updateProduct.productAvailable}
-                onChange={(e) =>
-                  setUpdateProduct({ ...updateProduct, productAvailable: e.target.checked })
-                }
-              />
-              <label className="form-check-label">Product Available</label>
+        <div className="right-column" style={{ width: "50%" }}>
+          <div className="product-description">
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: "1.2rem", fontWeight: 'lighter' }}>
+                {product.category}
+              </span>
+              <div className="release-date" style={{ marginBottom: "2rem" }}>
+                <h6>Listed : <span> <i> {new Date(product.releaseDate).toLocaleDateString()}</i></span></h6>
+              </div>
             </div>
+            
+            <h1 style={{ fontSize: "2rem", marginBottom: "0.5rem", textTransform: 'capitalize', letterSpacing: '1px' }}>
+              {product.name}
+            </h1>
+            <i style={{ marginBottom: "3rem" }}>{product.brand}</i>
+            <p style={{ fontWeight: 'bold', fontSize: '1rem', margin: '10px 0px 0px' }}>PRODUCT DESCRIPTION :</p>
+            <p style={{ marginBottom: "1rem" }}>{product.description}</p>
           </div>
 
-          <div className="col-12">
-            <button type="submit" className="btn btn-primary">
-              Submit
+          <div className="product-price">
+            <span style={{ fontSize: "2rem", fontWeight: "bold" }}>
+              {"$" + product.price}
+            </span>
+            <button
+              className={`cart-btn ${
+                !product.productAvailable ? "disabled-btn" : ""
+              }`}
+              onClick={handlAddToCart}
+              disabled={!product.productAvailable}
+              style={{
+                padding: "1rem 2rem",
+                fontSize: "1rem",
+                backgroundColor: "#007bff",
+                color: "white",
+                border: "none",
+                borderRadius: "5px",
+                cursor: "pointer",
+                marginBottom: "1rem",
+              }}
+            >
+              {product.productAvailable ? "Add to cart" : "Out of Stock"}
+            </button>
+            <h6 style={{ marginBottom: "1rem" }}>
+              Stock Available :{" "}
+              <i style={{ color: "green", fontWeight: "bold" }}>
+                {product.stockQuantity}
+              </i>
+            </h6>
+          </div>
+
+          <div className="update-button" style={{ display: "flex", gap: "1rem" }}>
+            <button
+              className="btn btn-primary"
+              type="button"
+              onClick={handleEditClick}
+              style={{
+                padding: "1rem 2rem",
+                fontSize: "1rem",
+                backgroundColor: "#007bff",
+                color: "white",
+                border: "none",
+                borderRadius: "5px",
+                cursor: "pointer",
+              }}
+            >
+              Update
+            </button>
+            <button
+              className="btn btn-primary"
+              type="button"
+              onClick={deleteProduct}
+              style={{
+                padding: "1rem 2rem",
+                fontSize: "1rem",
+                backgroundColor: "#dc3545",
+                color: "white",
+                border: "none",
+                borderRadius: "5px",
+                cursor: "pointer",
+              }}
+            >
+              Delete
             </button>
           </div>
-        </form>
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 
-export default UpdateProduct;
+export default Product;
