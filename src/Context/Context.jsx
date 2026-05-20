@@ -1,5 +1,6 @@
 import axios from "../axios";
-import { useState, useEffect, createContext, useCallback } from "react";
+import { useState, useEffect, createContext, useCallback, useContext } from "react"; // ➕ Added useContext here
+
 
 const AppContext = createContext({
   data: [],
@@ -80,4 +81,10 @@ export const AppProvider = ({ children }) => {
   );
 };
 
-export default AppContext;
+// ➕ ADDED: Custom hook to safely consume the context without breaking Vite Fast Refresh
+export function useApp() {
+  return useContext(AppContext);
+}
+
+// ➕ CHANGED: Export the Provider Component as the default export instead of the plain context object
+export default AppProvider;
